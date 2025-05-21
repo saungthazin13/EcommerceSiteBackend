@@ -7,8 +7,13 @@ import { limiter } from "./middlewares/ratelimiter";
 import healthRouter from "./routes/v1/health";
 import authRouter from "./routes/v1/auth";
 import userRouth from "./routes/v1/admin/user";
+import profileRouth from "./routes/v1/api/user";
 import { auth } from "./middlewares/auth";
 import cookieParser from "cookie-parser"; //for middleware
+import i18next from "i18next";
+import Backend from "i18next-fs-backend";
+import middleware, { handle } from "i18next-http-middleware";
+import path from "path"; //for i18next multilanguage
 
 export const app = express();
 
@@ -43,6 +48,28 @@ app.use(express.static("public")); //link for style css input for upper page
 app.use(cookieParser());
 app.use(cors());
 
+i18next
+  .use(Backend)
+  .use(middleware.LanguageDetector)
+  .init({
+    backend: {
+      debug: true,
+      loadPath: path.join(
+        process.cwd(),
+        "src/locales",
+        "{{lng}}",
+        "{{ns}}.json"
+      ),
+    },
+    detection: {
+      order: ["querystring", "cookie"],
+      caches: ["cookie"],
+    },
+    fallbackLng: "en",
+    preload: ["en", "mm"],
+  });
+app.use(middleware.handle(i18next));
+
 app.use(healthRouter); //for create controller for healthcontroller.ts
 app.use(authRouter);
 // app.use(userRouth);  //not for middleware in admin
@@ -55,3 +82,4 @@ app.use((error: any, req: Request, res: Response, next: NextFunction) => {
   const code = error.code || "Error code";
   res.status(status).json({ message, error: code });
 });
+app.use(profileRouth); //for this router put for under i18next

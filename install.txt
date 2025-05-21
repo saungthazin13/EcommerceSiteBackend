@@ -8,4 +8,18 @@
 8. npm i @types/bcrypt @types/compression @types/jsonwebtoken @types/multer --save-dev
 
 
+for multilanguage
+npm install i18next i18next-http-middleware i18next-fs-backend
+
 **** https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string  (datasource)
+
+localization =>for multilanguage
+Internationalization =>for 
+
+i18net =>for multilanguage
+cloudsolution =>like for googletranslate
+
+translate api-openai
+
+
+http://localhost:8080/user?lng=mm =>for postman in multilanguage

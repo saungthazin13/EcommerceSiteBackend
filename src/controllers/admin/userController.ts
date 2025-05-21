@@ -9,8 +9,9 @@ export const getAllUser = (
   next: NextFunction
 ) => {
   const id = req.userId;
+
   res.status(200).json({
-    message: "All user for check",
+    message: req.t("welcome"),
     currentuserId: id,
   });
 };

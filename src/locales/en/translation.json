@@ -1,0 +1,5 @@
+{
+  "welcome": "Welcome to our furniture shop",
+  "wrong": "Password is wrong",
+  "changeLan": "Successfully changed language - {{ lang }}."
+}

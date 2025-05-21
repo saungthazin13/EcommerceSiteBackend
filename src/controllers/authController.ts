@@ -10,7 +10,7 @@ import {
   updateUser,
   getUserById,
 } from "../services/authService";
-import moment from "moment";
+import moment, { invalid } from "moment";
 import {
   checkUserAccount,
   checkOtpErrorIfSameDate,
@@ -20,6 +20,7 @@ import {
 import { generateOtp, generateToken } from "../utils/OTP";
 import bcrypt from "bcrypt"; //for hashing in Otp
 import jwt from "jsonwebtoken";
+import { errorCode } from "../../errorCode";
 
 // register
 export const register = [
@@ -33,7 +34,7 @@ export const register = [
     if (errors.length > 0) {
       const error: any = new Error(errors[0].msg);
       error.status = 400;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     }
 
@@ -84,7 +85,7 @@ export const register = [
             "OTP is allowed to request 3 times per day"
           );
           error.status = 405;
-          error.code = "Error-Invalid";
+          error.code = errorCode.invalid;
           return next(error);
         }
         {
@@ -125,7 +126,7 @@ export const verifyOtp = [
     if (errors.length > 0) {
       const error: any = new Error(errors[0].msg);
       error.status = 400;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     }
 
@@ -151,7 +152,7 @@ export const verifyOtp = [
       await updateOtp(otpRow!.id, otpData);
       const error: any = new Error("Invalid token");
       error.status = 400;
-      error.code = "Error-InvalidToken";
+      error.code = errorCode.accessTokenExpired;
       return next(error);
     }
 
@@ -160,7 +161,7 @@ export const verifyOtp = [
     if (isExpired) {
       const error: any = new Error("  Invalid,OTP  is expired   for 2 minutes");
       error.status = 403; //for expired in 403
-      error.code = "Error-OtpExpired";
+      error.code = errorCode.otpExpired;
       return next(error);
     }
 
@@ -184,7 +185,7 @@ export const verifyOtp = [
       }
       const error: any = new Error("  OTP is incorrect!");
       error.status = 401; //for authorized
-      error.code = "Error-OtpInvalid";
+      error.code = errorCode.otpExpired;
       return next(error);
     }
     //All are Ok
@@ -221,7 +222,7 @@ export const confirmPassword = [
     if (errors.length > 0) {
       const error: any = new Error(errors[0].msg);
       error.status = 400;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     } //for error validation
 
@@ -237,7 +238,7 @@ export const confirmPassword = [
     if (otpRow?.error === 5) {
       const error: any = new Error("This request may be an attack.");
       error.status = 400;
-      error.code = "Error-Badrequest";
+      error.code = errorCode.attack;
       return next(error);
     }
 
@@ -249,7 +250,7 @@ export const confirmPassword = [
       await updateOtp(otpRow!.id, otpData);
       const error: any = new Error("Invalid token");
       error.status = 400;
-      error.code = "Error-Badrequest";
+      error.code = errorCode.attack;
       return next(error);
     }
 
@@ -258,7 +259,7 @@ export const confirmPassword = [
     if (isExpired) {
       const error: any = new Error(" Your request is expired!");
       error.status = 403;
-      error.code = "Error-Expired";
+      error.code = errorCode.otpExpired;
       return next(error);
     }
     const salt = await bcrypt.genSalt(10);
@@ -337,9 +338,9 @@ export const login = [
   async (req: Request, res: Response, next: NextFunction) => {
     const errors = validationResult(req).array({ onlyFirstError: true });
     if (errors.length > 0) {
-      const error: any = new Error(errors[0].msg);
+      const error: any = new Error(req.t("wrong"));
       error.status = 400;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     } //for error validation
 
@@ -357,7 +358,7 @@ export const login = [
         "Your account is temporarily account.Pleace contact account."
       );
       error.status = 400;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     }
     const isMatchPassword = await bcrypt.compare(password, user!.password);
@@ -389,11 +390,11 @@ export const login = [
       //end
       const error: any = new Error("Password is wrong");
       error.status = 401;
-      error.code = "Error-Invalid";
+      error.code = errorCode.invalid;
       return next(error);
     }
 
-    //successful for Authention for IWT Token
+    //successful for Authention for jwt Token
     const accessPayload = {
       id: user!.id,
     };
@@ -438,6 +439,8 @@ export const login = [
       .json({
         message: "Successfully Login account",
         userId: user!.id,
+        accessToken, //for mobile browser
+        refreshToken, //for mobile browser
       });
   },
 ];
@@ -452,7 +455,7 @@ export const logout = async (
   if (!refreshtToken) {
     const error: any = new Error("You are not an authenticated user!");
     error.status = 400;
-    error.code = "Error-Unauthenticated";
+    error.code = errorCode.unauthenticated;
     return next(error);
   }
 
@@ -465,14 +468,14 @@ export const logout = async (
   } catch (err) {
     const error: any = new Error("Invalid or expired refresh token!");
     error.status = 400;
-    error.code = "Error-Unauthenticated";
+    error.code = errorCode.unauthenticated;
     return next(error);
   }
 
   if (isNaN(decoded.id)) {
     const error: any = new Error("Invalid or expired refresh token!");
     error.status = 400;
-    error.code = "Error-Unauthenticated";
+    error.code = errorCode.unauthenticated;
     return next(error);
   }
 
@@ -482,7 +485,7 @@ export const logout = async (
   if (user!.phone !== decoded.phone) {
     const error: any = new Error("You are not an authenticated user!");
     error.status = 400;
-    error.code = "Error-Unauthenticated";
+    error.code = errorCode.unauthenticated;
     return next(error);
   }
 
@@ -491,9 +494,18 @@ export const logout = async (
   };
   await updateUser(user!.id, userData);
 
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "Production",
+    sameSite: process.env.NODE_ENV === "Production" ? "none" : "strict",
+  }); //for sections cookie in http only
+
   res
-    .clearCookie("accessToken")
-    .clearCookie("refreshToken")
+    .clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "Production",
+      sameSite: process.env.NODE_ENV === "Production" ? "none" : "strict",
+    })
     .status(200)
     .json({ message: "Successfully Logged out.See you soon" });
 };
